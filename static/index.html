@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flow Chain — US Lead Generation & Dialer Dashboard</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#F26B1D">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@twilio/voice-sdk@2.12.1/dist/twilio.min.js"></script>
+<style>
+  :root {
+    --brand: #F26B1D; --brand-600: #DD5A0E; --brand-700: #B8480A; --brand-50: #FFF5ED; --brand-100: #FFE7D4; --brand-200: #FFCFA8;
+    --bg: #FBF8F5; --card: #FFFFFF; --line: #EFE7E0; --line-2: #E5DAD0;
+    --text: #1E1915; --muted: #7C7068; --faint: #A89C93;
+    --green: #15A34A; --green-50: #EAF8EF; --green-700: #0E7A36;
+    --red: #DC2626; --red-50: #FDECEC; --red-700: #991B1B;
+    --amber: #C77700; --amber-50: #FFF6E3; --amber-700: #8C5300;
+    --blue: #2563EB; --blue-50: #EAF1FE; --blue-700: #1D4ED8;
+    --purple: #7C3AED; --purple-50: #F3E8FF; --purple-700: #6D28D9;
+    --shadow: 0 1px 3px rgba(30,25,21,.04), 0 4px 16px rgba(30,25,21,.06);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  a { color: var(--brand-600); text-decoration: none; } a:hover { text-decoration: underline; }
+  .muted { color: var(--muted); } .faint { color: var(--faint); } .small { font-size: 12px; }
+
+  /* ---------- header */
+  header { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.94); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 24px; flex-wrap: wrap; }
+  .header-left { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-logo { width: 38px; height: 38px; display: block; border-radius: 8px; }
+  .brand-name { font-weight: 800; font-size: 16px; letter-spacing: -.02em; line-height: 1.1; }
+  .brand-name span { display: block; font-weight: 600; font-size: 11px; color: var(--brand); letter-spacing: .06em; text-transform: uppercase; }
+
+  /* Segment Switcher (Phase 2) */
+  .seg-switcher { display: flex; background: var(--brand-50); border: 1px solid var(--brand-200); border-radius: 12px; padding: 3px; gap: 3px; }
+  .seg-btn { border: 0; background: transparent; padding: 6px 14px; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; transition: all .15s; }
+  .seg-btn:hover { color: var(--text); }
+  .seg-btn.active { background: #fff; color: var(--brand-700); box-shadow: 0 1px 4px rgba(242,107,29,.18); font-weight: 700; }
+  .seg-badge { font-size: 10px; padding: 1px 6px; border-radius: 99px; background: var(--brand-100); color: var(--brand-700); }
+
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .who { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .who input { width: 110px; border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 9px; background: #fff; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); display: inline-block; }
+  .dot.ok { background: var(--green); box-shadow: 0 0 0 3px var(--green-50); }
+  .dot.err { background: var(--red); box-shadow: 0 0 0 3px var(--red-50); }
+
+  /* Alerts Banner */
+  #alerts .alert { display: flex; gap: 12px; align-items: center; justify-content: space-between; background: var(--red-50);
+    border: 1px solid #F6C9C9; color: var(--red-700); padding: 9px 16px; margin: 12px 24px 0; border-radius: 12px; font-size: 13px; font-weight: 500; }
+
+  /* ---------- Layout */
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 20px; padding: 18px 24px 36px; align-items: start; }
+  @media (max-width: 1200px) { main { grid-template-columns: minmax(0, 1fr); } .side { order: -1; position: static !important; } }
+  @media (max-width: 768px) {
+    header { padding: 10px 14px; }
+    main { padding: 14px; gap: 14px; }
+    #alerts .alert { margin: 10px 14px 0; }
+  }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .card-pad { padding: 16px; }
+  .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 74px; }
+  h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 700; }
+
+  /* ---------- Small Business Summary KPI Cards (Phase 7) */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 16px 6px; }
+  @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .sb-kpi { background: #FAF7F4; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; transition: transform .12s, box-shadow .12s; }
+  .sb-kpi:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(30,25,21,.05); }
+  .sb-kpi .val { font-size: 20px; font-weight: 800; line-height: 1.1; margin-top: 2px; }
+  .sb-kpi .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  .sb-kpi.highlight { background: var(--brand-50); border-color: var(--brand-200); }
+  .sb-kpi.highlight .val { color: var(--brand-700); }
+  .sb-kpi.green { background: var(--green-50); border-color: #A7E3BD; }
+  .sb-kpi.green .val { color: var(--green-700); }
+  .sb-kpi.blue { background: var(--blue-50); border-color: #B4CEFB; }
+  .sb-kpi.blue .val { color: var(--blue-700); }
+  .sb-kpi.amber { background: var(--amber-50); border-color: #F8DFAC; }
+  .sb-kpi.amber .val { color: var(--amber-700); }
+
+  /* ---------- Action Bars & Controls */
+  .action-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #FCFAF8; }
+  .action-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .action-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #FFFDFB; }
+  .field { border: 1px solid var(--line-2); border-radius: 9px; padding: 7px 10px; background: #fff; outline: none; font-size: 13px; }
+  .field:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-100); }
+  .grow { flex: 1; min-width: 160px; }
+
+  .btn { border: 1px solid var(--line-2); background: #fff; border-radius: 9px; padding: 7px 12px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; transition: all .12s; }
+  .btn:hover:not(:disabled) { border-color: var(--brand-200); background: var(--brand-50); color: var(--brand-700); }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--brand-600); color: #fff; }
+  .btn.danger { color: var(--red-700); border-color: #F8C6C6; }
+  .btn.danger:hover:not(:disabled) { background: var(--red-50); }
+  .btn-sm { padding: 4px 8px; font-size: 12px; border-radius: 7px; }
+
+  /* Bulk action bar */
+  .bulk-bar { display: none; align-items: center; justify-content: space-between; padding: 8px 16px; background: var(--brand-100); border-bottom: 1px solid var(--brand-200); font-size: 13px; font-weight: 600; color: var(--brand-700); }
+  .bulk-bar.active { display: flex; }
+
+  /* ---------- Tables */
+  .tablewrap { overflow-x: auto; max-height: calc(100vh - 360px); }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--line); background: #FDFBF9; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--brand); background: var(--brand-50); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: 13px; }
+  tbody tr { cursor: pointer; transition: background .1s; }
+  tbody tr:hover { background: var(--brand-50); }
+  tbody tr.sel { background: var(--brand-100); box-shadow: inset 3px 0 0 var(--brand); }
+  tbody tr.dnc { opacity: .55; }
+
+  /* Badges & Pills */
+  .pill { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .s-new { background: var(--blue-50); color: var(--blue-700); }
+  .s-interested { background: var(--green-50); color: var(--green-700); }
+  .s-callback { background: var(--amber-50); color: var(--amber-700); }
+  .s-voicemail, .s-no_answer { background: #F3EEEA; color: #5C5049; }
+  .s-not_interested, .s-wrong_number, .s-do_not_call { background: var(--red-50); color: var(--red-700); }
+
+  /* AI Opportunity Badge (Phase 6) */
+  .opp-badge { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .opp-high { background: var(--green-50); color: var(--green-700); border: 1px solid #B6E6C7; }
+  .opp-med { background: var(--blue-50); color: var(--blue-700); border: 1px solid #C4D9FD; }
+  .opp-low { background: #F3EEEA; color: var(--muted); border: 1px solid var(--line); }
+  .opp-insufficient { background: var(--amber-50); color: var(--amber-700); border: 1px solid #F5DFAC; }
+
+  /* Score Badge (Phase 5) */
+  .score-badge { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 99px; display: inline-block; text-align: center; font-variant-numeric: tabular-nums; }
+  .sc-high { background: var(--green); color: #fff; }
+  .sc-med { background: #0284C7; color: #fff; }
+  .sc-low { background: var(--amber); color: #fff; }
+  .sc-zero { background: var(--faint); color: #fff; }
+
+  .emp-tag { font-size: 11px; color: var(--muted); background: #F5EFEB; padding: 2px 6px; border-radius: 5px; font-weight: 500; display: inline-block; white-space: nowrap; }
+  .emer-tag { font-size: 11px; color: #B91C1C; background: var(--red-50); border: 1px solid #F8C6C6; padding: 1px 5px; border-radius: 5px; font-weight: 700; }
+
+  /* Pagination Bar */
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+  /* ---------- Tabs (Existing Leads View) */
+  .tabs { display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab { border: 0; background: none; padding: 9px 14px; border-radius: 9px 9px 0 0; color: var(--muted); font-weight: 600; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.on { color: var(--brand-700); border-bottom-color: var(--brand); }
+  .tab .cnt { margin-left: 6px; background: var(--brand-100); color: var(--brand-700); padding: 1px 7px; border-radius: 99px; font-size: 11px; }
+  .tab .cnt.hot { background: var(--red); color: #fff; }
+  .pane { display: none; } .pane.on { display: block; }
+
+  /* ---------- Dialer Sidepane (Phase 8) */
+  .lead-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+  .lead-title { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .campaign-tag { font-size: 11px; font-weight: 700; color: var(--brand-700); background: var(--brand-50); border: 1px solid var(--brand-200); border-radius: 6px; padding: 2px 7px; margin-top: 4px; display: inline-block; }
+  .clock { margin: 12px 0; padding: 10px 12px; border-radius: 11px; background: var(--brand-50); border: 1px solid var(--brand-100); display: flex; align-items: center; justify-content: space-between; }
+  .clock .t { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .clock .z { font-size: 11px; color: var(--muted); }
+  .clock.blocked { background: var(--red-50); border-color: #F6C9C9; }
+  .badge { font-size: 11px; font-weight: 700; border-radius: 99px; padding: 2px 8px; }
+  .b-open { background: var(--green-50); color: var(--green-700); }
+  .b-edge { background: var(--amber-50); color: var(--amber-700); }
+  .b-closed { background: #F3EEEA; color: #6B5F57; }
+  .b-blocked { background: var(--red-50); color: var(--red-700); }
+
+  .numwrap { display: flex; align-items: center; border: 1.5px solid var(--line-2); border-radius: 11px; overflow: hidden; background: #fff; }
+  .numwrap:focus-within { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-100); }
+  .cc { padding: 10px 12px; font-size: 18px; font-weight: 700; color: var(--brand-700); background: var(--brand-50); border-right: 1px solid var(--brand-100); user-select: none; }
+  #number { border: 0; outline: none; flex: 1; font-size: 19px; font-weight: 600; padding: 10px; min-width: 0; font-variant-numeric: tabular-nums; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
+  .key { border: 1px solid var(--line); background: #FDFBF9; border-radius: 10px; padding: 8px 0; font-size: 17px; font-weight: 600; }
+  .key small { display: block; font-size: 9px; letter-spacing: .12em; color: var(--faint); font-weight: 600; }
+  .key:hover { background: var(--brand-50); border-color: var(--brand-200); }
+  .big { border: 0; border-radius: 11px; padding: 13px; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #callBtn { background: linear-gradient(135deg, #FF8A3D, var(--brand-600)); color: #fff; box-shadow: 0 5px 14px rgba(242,107,29,.3); }
+  #hangBtn { background: var(--red); color: #fff; display: none; box-shadow: 0 5px 14px rgba(220,38,38,.28); }
+  .outcomes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .oc { border: 1px solid var(--line-2); background: #fff; border-radius: 9px; padding: 7px 5px; font-size: 12px; font-weight: 600; }
+  .oc:hover { background: var(--brand-50); border-color: var(--brand-200); }
+  .oc.cur { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .oc.danger { grid-column: span 2; color: var(--red-700); border-color: #F8C6C6; }
+  .oc.danger.cur { background: var(--red); color: #fff; }
+  .cbbox { display: none; margin-top: 8px; padding: 10px; border-radius: 9px; background: var(--amber-50); border: 1px solid #F5DFAE; }
+  .cbbox.on { display: block; }
+  .hist div { padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
+
+  /* Modals (Discovery, Import Preview, Lead Details) */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(30,25,21,.48); backdrop-filter: blur(4px); z-index: 100; place-items: center; padding: 20px; overflow-y: auto; }
+  .modal-overlay.active { display: grid; }
+  .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 640px; box-shadow: 0 20px 40px rgba(0,0,0,.2); border: 1px solid var(--line); max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column; }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .modal-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+  .modal-close { border: 0; background: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px; line-height: 1; }
+  .modal-body { padding: 20px; flex: 1; overflow-y: auto; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); background: #FAF8F6; }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+
+  /* Criteria score breakdown card */
+  .crit-row { display: flex; justify-content: space-between; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .crit-name { font-weight: 600; flex: 1; }
+  .crit-pts { font-weight: 700; color: var(--brand-700); margin-left: 10px; }
+  .crit-evid { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1E1915; color: #fff; padding: 10px 20px;
+    border-radius: 12px; display: none; max-width: 90vw; z-index: 200; box-shadow: 0 10px 30px rgba(0,0,0,.25); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="brand">
+      <img class="brand-logo" src="/icons/logo-96.png" width="38" height="38" alt="Flow Chain">
+      <div class="brand-name">Flow Chain<span>Dialer &amp; Leads</span></div>
+    </div>
+
+    <!-- Segment Switcher -->
+    <div class="seg-switcher">
+      <button class="seg-btn active" id="btnSmallBiz" onclick="switchSegment('small_business')">
+        <span>⚡</span> Small Business Leads
+        <span class="seg-badge" id="badgeSmallBiz">0</span>
+      </button>
+      <button class="seg-btn" id="btnMediumLarge" onclick="switchSegment('medium_large')">
+        <span>🏢</span> Existing Leads (Med-Large)
+        <span class="seg-badge" id="badgeMedLarge">540</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="who">
+      <span class="dot" id="connDot" title="Checking setup…"></span>
+      <input id="agent" placeholder="Agent name" maxlength="40" title="Shown in call history">
+    </div>
+  </div>
+</header>
+
+<div id="alerts"></div>
+
+<main>
+  <!-- ===================== LEFT: MAIN LEADS VIEW ===================== -->
+  <section class="card" id="listCard">
+
+    <!-- VIEW A: SMALL BUSINESS LEADS DASHBOARD (Phase 7) -->
+    <div id="viewSmallBiz">
+      <!-- 8 Summary KPI Cards -->
+      <div class="kpi-grid">
+        <div class="sb-kpi highlight">
+          <div class="lbl">Total Leads</div>
+          <div class="val" id="sbTotal">0</div>
+        </div>
+        <div class="sb-kpi green">
+          <div class="lbl">High Priority (80–100)</div>
+          <div class="val" id="sbHighPri">0</div>
+        </div>
+        <div class="sb-kpi blue">
+          <div class="lbl">Medium Priority (60–79)</div>
+          <div class="val" id="sbMedPri">0</div>
+        </div>
+        <div class="sb-kpi green">
+          <div class="lbl">High AI Potential</div>
+          <div class="val" id="sbHighOpp">0</div>
+        </div>
+        <div class="sb-kpi amber">
+          <div class="lbl">Not Yet Called</div>
+          <div class="val" id="sbNotCalled">0</div>
+        </div>
+        <div class="sb-kpi">
+          <div class="lbl">Calls Completed</div>
+          <div class="val" id="sbCallsDone">0</div>
+        </div>
+        <div class="sb-kpi green">
+          <div class="lbl">Interested Prospects</div>
+          <div class="val" id="sbInterested">0</div>
+        </div>
+        <div class="sb-kpi amber">
+          <div class="lbl">Follow-ups Required</div>
+          <div class="val" id="sbCallbacks">0</div>
+        </div>
+      </div>
+
+      <!-- Action Bar -->
+      <div class="action-bar">
+        <div class="action-left">
+          <button class="btn primary" onclick="openDiscoveryModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Discover Small Business Leads
+          </button>
+          <button class="btn" onclick="openAddLeadModal()">+ Add Lead</button>
+          <button class="btn" onclick="document.getElementById('csvSmallBiz').click()">Import CSV</button>
+          <input id="csvSmallBiz" type="file" accept=".csv" hidden onchange="handleCsvFile(event, 'small_business')">
+          <a class="btn" href="/api/leads/export?segment=small_business">Export CSV</a>
+        </div>
+        <div class="action-right">
+          <button class="btn btn-sm" onclick="bulkAction('qualify')">Recalculate Scores</button>
+          <button class="btn btn-sm" onclick="bulkAction('verify')">Mark Verified</button>
+        </div>
+      </div>
+
+      <!-- Bulk Selection Bar -->
+      <div class="bulk-bar" id="bulkBar">
+        <span id="bulkCount">0 leads selected</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm primary" onclick="queueSelectedCalls()">Queue Calls</button>
+          <button class="btn btn-sm" onclick="bulkSetStatusPrompt()">Set Status</button>
+          <button class="btn btn-sm danger" onclick="bulkDeleteSelected()">Delete</button>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <input id="sbSearch" class="field grow" placeholder="Search business, phone, city, state, owner…">
+        <select id="sbTradeFilter" class="field">
+          <option value="">All Trades</option>
+          <option value="HVAC">HVAC</option>
+          <option value="Plumbing">Plumbing</option>
+        </select>
+        <select id="sbStateFilter" class="field" style="width:110px">
+          <option value="">All States</option>
+          <option value="TX">Texas (TX)</option>
+          <option value="AZ">Arizona (AZ)</option>
+          <option value="CA">California (CA)</option>
+          <option value="FL">Florida (FL)</option>
+          <option value="NV">Nevada (NV)</option>
+          <option value="WA">Washington (WA)</option>
+          <option value="OR">Oregon (OR)</option>
+        </select>
+        <select id="sbScoreFilter" class="field">
+          <option value="">All Scores</option>
+          <option value="80">80–100 (High Priority)</option>
+          <option value="60">60–79 (Medium Priority)</option>
+          <option value="40">40–59 (Low Priority)</option>
+        </select>
+        <select id="sbOppFilter" class="field">
+          <option value="">All Opportunity Levels</option>
+          <option value="High potential">High Potential</option>
+          <option value="Medium potential">Medium Potential</option>
+          <option value="Low potential">Low Potential</option>
+        </select>
+        <select id="sbStatusFilter" class="field">
+          <option value="">All Call Statuses</option>
+          <option value="new">New / Not Called</option>
+          <option value="called">Called</option>
+          <option value="interested">Interested</option>
+          <option value="callback">Callback</option>
+          <option value="no_answer">No answer</option>
+          <option value="voicemail">Voicemail</option>
+          <option value="not_interested">Not interested</option>
+          <option value="do_not_call">Do not call</option>
+        </select>
+        <button class="btn btn-sm" id="sbClearFilters" onclick="clearSbFilters()">Reset</button>
+      </div>
+
+      <!-- Leads Table -->
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:30px"><input type="checkbox" id="selectAllSb" onchange="toggleSelectAll(this)"></th>
+              <th class="sortable" onclick="setSort('name')">Business Name</th>
+              <th>Trade</th>
+              <th class="sortable" onclick="setSort('state')">Location</th>
+              <th>Phone</th>
+              <th>Est. Size</th>
+              <th class="sortable" onclick="setSort('lead_score')">Score</th>
+              <th>Voice AI Opportunity</th>
+              <th>Status</th>
+              <th class="sortable" onclick="setSort('last_called')">Last Called</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sbLeadsBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="sbPagination">
+        <span id="sbPageInfo">Showing 0 of 0 leads</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" id="sbPrevBtn" onclick="changePage(-1)">‹ Prev</button>
+          <button class="btn btn-sm" id="sbNextBtn" onclick="changePage(1)">Next ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW B: EXISTING LEADS (MEDIUM-LARGE) (Untouched original tabs) -->
+    <div id="viewExisting" style="display:none">
+      <div class="tabs">
+        <button class="tab on" data-tab="leads">Existing Leads<span class="cnt" id="cExistingLeads">540</span></button>
+        <button class="tab" data-tab="callbacks">Callbacks<span class="cnt" id="cCb">0</span></button>
+        <button class="tab" data-tab="voicemails">Voicemails<span class="cnt" id="cVm">0</span></button>
+        <button class="tab" data-tab="today">Today's calls<span class="cnt" id="cToday">0</span></button>
+      </div>
+
+      <div class="pane on" id="p-leads">
+        <div class="filter-bar">
+          <input id="q" class="field grow" placeholder="Search business, phone, city, trade…">
+          <select id="statusFilter" class="field">
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="no_answer">No answer</option>
+            <option value="voicemail">Voicemail</option>
+            <option value="callback">Call back</option>
+            <option value="interested">Interested</option>
+            <option value="not_interested">Not interested</option>
+            <option value="wrong_number">Wrong number</option>
+            <option value="do_not_call">Do not call</option>
+          </select>
+          <select id="tzFilter" class="field">
+            <option value="">All time zones</option>
+            <option value="America/Los_Angeles">Pacific</option>
+            <option value="America/Phoenix">Arizona</option>
+            <option value="America/Denver">Mountain</option>
+            <option value="America/Chicago">Central</option>
+            <option value="America/New_York">Eastern</option>
+          </select>
+          <a class="btn" href="/api/leads/export?segment=medium_large">Export Existing</a>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Business</th><th>Phone</th><th>Location</th><th>Their Time</th><th>Status</th><th>Last Called</th></tr>
+            </thead>
+            <tbody id="existingLeadsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="pane" id="p-callbacks"><div class="list" id="cbList"></div></div>
+      <div class="pane" id="p-voicemails"><div class="list" id="vmList"></div></div>
+      <div class="pane" id="p-today"><div class="list" id="todayList"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== RIGHT: DIALER SIDEPANE ===================== -->
+  <aside class="side">
+    <div class="card card-pad">
+      <div class="lead-head">
+        <div>
+          <div class="lead-title" id="leadTitle">Manual dial</div>
+          <div class="sub" id="leadSub">Pick a lead, or enter a US number.</div>
+          <span class="campaign-tag" id="campaignTag">Campaign: Small Business HVAC &amp; Plumbing</span>
+        </div>
+        <span id="leadPill"></span>
+      </div>
+
+      <div class="clock" id="clock" style="display:none">
+        <div><div class="t" id="clockT">--:--</div><div class="z" id="clockZ"></div></div>
+        <span class="badge" id="clockB"></span>
+      </div>
+
+      <div class="numwrap" style="margin-top:14px">
+        <div class="cc">🇺🇸 +1</div>
+        <input id="number" inputmode="numeric" autocomplete="off" placeholder="(213) 555-0123" maxlength="14" aria-label="US phone number">
+      </div>
+      <div class="keypad" id="keypad"></div>
+      <div class="callrow" style="margin-top:10px">
+        <button id="callBtn" class="big" onclick="startCall()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z"/></svg>
+          Call Lead
+        </button>
+        <button id="hangBtn" class="big" onclick="hangUp()">Hang up</button>
+      </div>
+      <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <button id="muteBtn" class="btn" disabled style="justify-content:center" onclick="toggleMute()">Mute</button>
+        <button id="nextBtn" class="btn" style="justify-content:center" onclick="nextLead()">Next lead ▸</button>
+      </div>
+      <button id="demoBtn" class="btn" style="justify-content:center;width:100%;margin-top:8px" onclick="callDemo()">🤖 Call Flow Chain Demo Line</button>
+      <div id="callState" style="text-align:center;margin-top:10px;font-weight:600;color:var(--muted)">Ready</div>
+
+      <div id="leadPanel" style="display:none;margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <h3 style="margin:0">Log Call Outcome</h3>
+          <span class="small faint" id="saved"></span>
+        </div>
+        <div class="outcomes" id="outcomes">
+          <button class="oc" data-s="no_answer" onclick="setOutcome('no_answer')">No answer</button>
+          <button class="oc" data-s="voicemail" onclick="setOutcome('voicemail')">Voicemail</button>
+          <button class="oc" data-s="callback" onclick="setOutcome('callback')">Call back…</button>
+          <button class="oc" data-s="interested" onclick="setOutcome('interested')">Interested</button>
+          <button class="oc" data-s="not_interested" onclick="setOutcome('not_interested')">Not interested</button>
+          <button class="oc" data-s="wrong_number" onclick="setOutcome('wrong_number')">Wrong number</button>
+          <button class="oc danger" data-s="do_not_call" onclick="setOutcome('do_not_call')">Do not call</button>
+        </div>
+        <div class="cbbox" id="cbBox">
+          <div class="small" style="font-weight:700;margin-bottom:5px">Scheduled Callback (your time)</div>
+          <div style="display:flex;gap:6px">
+            <input type="datetime-local" id="cbAt" class="field grow">
+            <button class="btn primary btn-sm" onclick="saveCallback()">Save</button>
+          </div>
+          <div class="small muted" id="cbTheirs" style="margin-top:4px"></div>
+        </div>
+
+        <h3 style="margin-top:16px">Notes</h3>
+        <textarea id="notes" class="field" style="width:100%;height:80px;resize:vertical" placeholder="Spoke to owner, job volume, objections, etc…"></textarea>
+
+        <h3 style="margin-top:14px">Recent Calls</h3>
+        <div id="history" class="hist muted small"></div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ===================== MODAL 1: DISCOVERY (Phase 10) ===================== -->
+<div class="modal-overlay" id="discoveryModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>🔍 Discover Small Business Leads</h2>
+      <button class="modal-close" onclick="closeDiscoveryModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Industry</label>
+        <select id="discTrade" class="field" style="width:100%">
+          <option value="Both">Both HVAC &amp; Plumbing</option>
+          <option value="HVAC">HVAC Contractors only</option>
+          <option value="Plumbing">Plumbing Contractors only</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target US State</label>
+        <select id="discState" class="field" style="width:100%">
+          <option value="TX">Texas (TX)</option>
+          <option value="AZ">Arizona (AZ)</option>
+          <option value="FL">Florida (FL)</option>
+          <option value="CA">California (CA)</option>
+          <option value="NV">Nevada (NV)</option>
+          <option value="WA">Washington (WA)</option>
+          <option value="CO">Colorado (CO)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Target Cities (comma-separated)</label>
+        <input id="discCities" class="field" style="width:100%" value="Dallas, Fort Worth, Arlington" placeholder="e.g. Phoenix, Mesa, Gilbert">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label>Max Leads to Discover</label>
+          <input type="number" id="discMax" class="field" style="width:100%" value="20" min="5" max="100">
+        </div>
+        <div class="form-group">
+          <label>Min Qualification Score</label>
+          <input type="number" id="discMinScore" class="field" style="width:100%" value="60" min="0" max="100">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Min AI Receptionist Opportunity</label>
+        <select id="discMinOpp" class="field" style="width:100%">
+          <option value="All">All Opportunities</option>
+          <option value="Medium potential" selected>Medium Potential or higher</option>
+          <option value="High potential">High Potential only</option>
+        </select>
+      </div>
+
+      <!-- Job status box -->
+      <div id="discStatusBox" style="display:none;margin-top:14px;padding:12px;border-radius:10px;background:var(--brand-50);border:1px solid var(--brand-200)">
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:6px">
+          <span id="discJobStatus">Running discovery job…</span>
+          <span id="discJobId">#--</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+          <div>Found: <b id="discFound">0</b></div>
+          <div>Duplicates skipped: <b id="discDupes">0</b></div>
+          <div>Rejected (low fit): <b id="discRej">0</b></div>
+          <div>Added to leads: <b id="discAdded" style="color:var(--green-700)">0</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeDiscoveryModal()">Close</button>
+      <button class="btn primary" id="discStartBtn" onclick="startDiscovery()">Launch Discovery Job</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL 2: LEAD DETAILS & AI BREAKDOWN (Phase 5 & 6) ===================== -->
+<div class="modal-overlay" id="leadDetailsModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <h2 id="modalLeadName">Business Name</h2>
+        <span class="sub" id="modalLeadSub">Location · Phone</span>
+      </div>
+      <button class="modal-close" onclick="closeLeadDetailsModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Top Badges -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+        <span class="score-badge" id="modalScore">--</span>
+        <span class="opp-badge" id="modalOpp">--</span>
+        <span class="emp-tag" id="modalEmp">--</span>
+        <span class="pill" id="modalStatus">--</span>
+      </div>
+
+      <!-- Voice AI Buying Potential Rationale (Phase 6) -->
+      <div style="background:var(--brand-50);border:1px solid var(--brand-200);border-radius:12px;padding:14px;margin-bottom:16px">
+        <h3 style="color:var(--brand-700);margin-bottom:6px">Voice AI Receptionist Opportunity</h3>
+        <div id="modalAiReasoning" style="font-size:13px;line-height:1.6;white-space:pre-wrap"></div>
+      </div>
+
+      <!-- 7 Scoring Criteria (Phase 5) -->
+      <h3>AI Qualification Breakdown (0–100 Scale)</h3>
+      <div id="modalCriteriaList"></div>
+
+      <!-- Additional Sourced Data -->
+      <h3 style="margin-top:18px">Verified Business Data</h3>
+      <div style="font-size:13px;display:grid;grid-template-columns:1fr 1fr;gap:8px" id="modalExtraData"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn primary" id="modalCallBtn" onclick="callCurrentFromModal()">📞 Call Now</button>
+      <button class="btn" onclick="closeLeadDetailsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL 3: CSV IMPORT PREVIEW (Phase 9) ===================== -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal-card" style="max-width:760px">
+    <div class="modal-head">
+      <h2>Preview CSV Import</h2>
+      <button class="modal-close" onclick="closePreviewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+        <div class="sb-kpi green"><div class="lbl">New Valid Leads</div><div class="val" id="prevValid">0</div></div>
+        <div class="sb-kpi amber"><div class="lbl">Duplicates Detected</div><div class="val" id="prevDupes">0</div></div>
+        <div class="sb-kpi"><div class="lbl">Invalid Phone Rows</div><div class="val" id="prevInvalid">0</div></div>
+      </div>
+      <p class="small muted">Sample evaluated leads with computed AI Qualification scores:</p>
+      <div class="tablewrap" style="max-height:240px">
+        <table>
+          <thead>
+            <tr><th>Business</th><th>Phone</th><th>Location</th><th>Trade</th><th>Score</th><th>AI Opp</th></tr>
+          </thead>
+          <tbody id="prevTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closePreviewModal()">Cancel</button>
+      <button class="btn primary" id="btnConfirmImport" onclick="confirmImport()">Confirm &amp; Import Leads</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL 4: MANUAL ADD LEAD ===================== -->
+<div class="modal-overlay" id="addLeadModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>+ Add Small Business Lead</h2>
+      <button class="modal-close" onclick="closeAddLeadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Business Name *</label>
+        <input id="addName" class="field" style="width:100%" placeholder="e.g. Rapid Response Plumbing">
+      </div>
+      <div class="form-group">
+        <label>US Phone Number *</label>
+        <input id="addPhone" class="field" style="width:100%" placeholder="(555) 123-4567">
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <div class="form-group">
+          <label>City</label>
+          <input id="addCity" class="field" style="width:100%" placeholder="Dallas">
+        </div>
+        <div class="form-group">
+          <label>State (2 letters)</label>
+          <input id="addState" class="field" style="width:100%" placeholder="TX" maxlength="2">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label>Trade / Industry</label>
+          <select id="addCat" class="field" style="width:100%">
+            <option>Plumbing</option>
+            <option>HVAC</option>
+            <option>Emergency Plumber</option>
+            <option>Air Conditioning Repair</option>
+            <option>Water Heater Repair</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Estimated Employees</label>
+          <select id="addEmp" class="field" style="width:100%">
+            <option>1-5</option>
+            <option>1-10</option>
+            <option>10-25</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Owner / Decision-Maker Name</label>
+        <input id="addOwner" class="field" style="width:100%" placeholder="e.g. John Miller (if known)">
+      </div>
+      <div class="form-group">
+        <label>Website URL</label>
+        <input id="addWebsite" class="field" style="width:100%" placeholder="https://…">
+      </div>
+      <div style="display:flex;gap:14px;margin-top:10px">
+        <label style="font-size:13px;display:inline-flex;align-items:center;gap:6px">
+          <input type="checkbox" id="addEmer"> Advertises Emergency / 24-7
+        </label>
+        <label style="font-size:13px;display:inline-flex;align-items:center;gap:6px">
+          <input type="checkbox" id="addAfter"> After-hours service
+        </label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAddLeadModal()">Cancel</button>
+      <button class="btn primary" onclick="submitAddLead()">Save &amp; Qualify Lead</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+};
+
+let activeSegment = 'small_business';
+let device = null, call = null, currentLead = null;
+let sbLeads = [], existingLeads = [];
+let sbTotal = 0, sbPage = 1, sbPageSize = 25;
+let sbSortBy = 'lead_score', sbSortOrder = 'desc';
+let selectedIds = new Set();
+let pendingImportFile = null;
+let currentModalLead = null;
+
+function toast(msg, ms = 3500) {
+  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = 'none'), ms);
+}
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (r.status === 204) return null;
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || data.detail || r.statusText);
+  return data;
+}
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ten = (raw) => String(raw || '').replace(/\D/g, '').replace(/^1+/, '').slice(0, 10);
+const fmt = (d) => d.length > 6 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : d.length > 3 ? `(${d.slice(0,3)}) ${d.slice(3)}` : d;
+const pretty = (e164) => fmt(ten(e164));
+const valid = (d) => /^[2-9]\d{2}[2-9]\d{6}$/.test(d);
+const ago = (iso) => {
+  if (!iso) return '—';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return 'just now'; if (s < 3600) return `${Math.floor(s/60)}m ago`; if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+const dur = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const label = (s) => ({
+  no_answer:'No answer', voicemail:'Voicemail', callback:'Call back', interested:'Interested',
+  not_interested:'Not interested', wrong_number:'Wrong number', do_not_call:'Do not call', new:'New'
+})[s] || s;
+
+// ---------- Time zone calculations
+const TZ_NAMES = {
+  'America/Los_Angeles':'Pacific', 'America/Phoenix':'Arizona', 'America/Denver':'Mountain',
+  'America/Chicago':'Central', 'America/New_York':'Eastern', 'America/Anchorage':'Alaska', 'Pacific/Honolulu':'Hawaii'
+};
+function local(tz) {
+  if (!tz) return null;
+  try {
+    const now = new Date();
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', weekday: 'short', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]));
+    const h = +parts.hour % 24, m = +parts.minute, wd = parts.weekday;
+    const text = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(now);
+    let state = 'open', badge = 'Open';
+    if (h < 8 || h >= 21) { state = 'blocked'; badge = 'Too early/late'; }
+    else if (wd === 'Sun') { state = 'closed'; badge = 'Sunday'; }
+    else if (wd === 'Sat') { state = (h >= 9 && h < 14) ? 'edge' : 'closed'; badge = state === 'edge' ? 'Sat hours' : 'Closed'; }
+    else if (h >= 17) { state = 'edge'; badge = 'After hours'; }
+    return { text, wd, h, state, badge, zone: TZ_NAMES[tz] || tz.split('/').pop().replace('_', ' ') };
+  } catch { return null; }
+}
+
+// ---------- Segment Switching (Phase 2)
+function switchSegment(seg) {
+  activeSegment = seg;
+  $('btnSmallBiz').classList.toggle('active', seg === 'small_business');
+  $('btnMediumLarge').classList.toggle('active', seg === 'medium_large');
+  $('viewSmallBiz').style.display = seg === 'small_business' ? 'block' : 'none';
+  $('viewExisting').style.display = seg === 'medium_large' ? 'block' : 'none';
+  $('campaignTag').textContent = seg === 'small_business' ? 'Campaign: Small Business HVAC & Plumbing' : 'Campaign: Medium-Large HVAC & Plumbing';
+
+  if (seg === 'small_business') {
+    loadSbLeads();
+    loadSbStats();
+  } else {
+    loadExistingLeads();
+  }
+}
+
+// ---------- Small Business Leads: Data Loading & Table
+async function loadSbStats() {
+  try {
+    const s = await api('/api/leads/stats?segment=small_business');
+    $('sbTotal').textContent = s.total_leads;
+    $('badgeSmallBiz').textContent = s.total_leads;
+    $('sbHighPri').textContent = s.high_priority_leads;
+    $('sbMedPri').textContent = s.medium_priority_leads;
+    $('sbHighOpp').textContent = s.high_opportunity_leads;
+    $('sbNotCalled').textContent = s.not_called_leads;
+    $('sbCallsDone').textContent = s.calls_completed;
+    $('sbInterested').textContent = s.interested_prospects;
+    $('sbCallbacks').textContent = s.follow_ups_required;
+  } catch (e) {
+    console.warn("Failed to load stats:", e);
+  }
+}
+
+async function loadSbLeads() {
+  const p = new URLSearchParams({
+    segment: 'small_business',
+    page: sbPage,
+    page_size: sbPageSize,
+    sort_by: sbSortBy,
+    sort_order: sbSortOrder,
+    q: $('sbSearch').value.trim(),
+    category: $('sbTradeFilter').value,
+    state: $('sbStateFilter').value,
+    ai_opportunity: $('sbOppFilter').value,
+    status: $('sbStatusFilter').value,
+  });
+  if ($('sbScoreFilter').value) p.append('min_score', $('sbScoreFilter').value);
+
+  try {
+    const res = await api('/api/leads?' + p);
+    sbLeads = res.leads || [];
+    sbTotal = res.total || 0;
+    renderSbTable();
+  } catch (e) {
+    toast("Error loading leads: " + e.message);
+  }
+}
+
+function renderSbTable() {
+  $('sbPageInfo').textContent = `Showing ${sbLeads.length ? (sbPage - 1) * sbPageSize + 1 : 0}–${Math.min(sbPage * sbPageSize, sbTotal)} of ${sbTotal} leads`;
+  $('sbPrevBtn').disabled = sbPage <= 1;
+  $('sbNextBtn').disabled = sbPage * sbPageSize >= sbTotal;
+
+  $('sbLeadsBody').innerHTML = sbLeads.length ? sbLeads.map(l => {
+    const sc = l.lead_score || 0;
+    const scClass = sc >= 80 ? 'sc-high' : sc >= 60 ? 'sc-med' : sc >= 40 ? 'sc-low' : 'sc-zero';
+    const opp = l.ai_opportunity || 'Insufficient';
+    const oppClass = opp.includes('High') ? 'opp-high' : opp.includes('Med') ? 'opp-med' : opp.includes('Low') ? 'opp-low' : 'opp-insufficient';
+    const isSel = currentLead && currentLead.id === l.id;
+    const isChecked = selectedIds.has(l.id);
+
+    return `
+      <tr data-id="${l.id}" class="${isSel ? 'sel' : ''} ${l.status === 'do_not_call' ? 'dnc' : ''}">
+        <td onclick="event.stopPropagation()"><input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSelectLead(${l.id}, this)"></td>
+        <td onclick="openLeadDetails(${l.id})">
+          <div style="font-weight:700">${esc(l.name)}</div>
+          ${l.owner_name ? `<div class="sub">👤 ${esc(l.owner_name)}</div>` : ''}
+          ${l.website ? `<div class="sub"><a href="${esc(l.website.startsWith('http') ? l.website : 'https://' + l.website)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🌐 website ↗</a></div>` : ''}
+        </td>
+        <td><span class="pill">${esc(l.category || 'HVAC')}</span></td>
+        <td>${esc([l.city, l.state].filter(Boolean).join(', '))}</td>
+        <td style="white-space:nowrap;font-weight:600">${pretty(l.phone)}</td>
+        <td><span class="emp-tag">${esc(l.employee_estimate || '1-10 (Est)')}</span></td>
+        <td><span class="score-badge ${scClass}" title="AI Qualification Score (0-100)">${sc}</span></td>
+        <td><span class="opp-badge ${oppClass}">● ${esc(opp)}</span></td>
+        <td><span class="pill s-${l.status}">${label(l.status)}</span></td>
+        <td class="sub">${ago(l.last_called)}</td>
+        <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
+          <button class="btn btn-sm primary" onclick="callLeadDirect(${l.id})">📞 Call</button>
+          <button class="btn btn-sm" onclick="openLeadDetails(${l.id})">ℹ️</button>
+        </td>
+      </tr>
+    `;
+  }).join('') : '<tr><td colspan="11" style="text-align:center;padding:36px;color:var(--muted)">No small business leads match your filter. Click <b>"Discover Small Business Leads"</b> to populate.</td></tr>';
+}
+
+function setSort(col) {
+  if (sbSortBy === col) {
+    sbSortOrder = sbSortOrder === 'asc' ? 'desc' : 'asc';
+  } else {
+    sbSortBy = col; sbSortOrder = 'desc';
+  }
+  loadSbLeads();
+}
+function changePage(delta) {
+  sbPage += delta;
+  loadSbLeads();
+}
+function clearSbFilters() {
+  $('sbSearch').value = '';
+  $('sbTradeFilter').value = '';
+  $('sbStateFilter').value = '';
+  $('sbScoreFilter').value = '';
+  $('sbOppFilter').value = '';
+  $('sbStatusFilter').value = '';
+  sbPage = 1;
+  loadSbLeads();
+}
+
+let searchTimer;
+$('sbSearch').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { sbPage = 1; loadSbLeads(); }, 300); });
+$('sbTradeFilter').addEventListener('change', () => { sbPage = 1; loadSbLeads(); });
+$('sbStateFilter').addEventListener('change', () => { sbPage = 1; loadSbLeads(); });
+$('sbScoreFilter').addEventListener('change', () => { sbPage = 1; loadSbLeads(); });
+$('sbOppFilter').addEventListener('change', () => { sbPage = 1; loadSbLeads(); });
+$('sbStatusFilter').addEventListener('change', () => { sbPage = 1; loadSbLeads(); });
+
+// ---------- Multi-Select
+function toggleSelectLead(id, checkbox) {
+  if (checkbox.checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateBulkBar();
+}
+function toggleSelectAll(master) {
+  sbLeads.forEach(l => { if (master.checked) selectedIds.add(l.id); else selectedIds.delete(l.id); });
+  renderSbTable();
+  updateBulkBar();
+}
+function updateBulkBar() {
+  $('bulkBar').classList.toggle('active', selectedIds.size > 0);
+  $('bulkCount').textContent = `${selectedIds.size} leads selected`;
+}
+
+// ---------- Existing Leads (Medium-Large)
+async function loadExistingLeads() {
+  try {
+    const q = $('q').value.trim();
+    const status = $('statusFilter').value;
+    const leads = await api(`/api/leads?segment=medium_large&q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`);
+    existingLeads = leads;
+    $('cExistingLeads').textContent = leads.length;
+    $('badgeMedLarge').textContent = leads.length;
+
+    $('existingLeadsBody').innerHTML = leads.length ? leads.map(l => {
+      const L = local(l.timezone);
+      const isSel = currentLead && currentLead.id === l.id;
+      return `
+        <tr data-id="${l.id}" class="${isSel ? 'sel' : ''} ${l.status === 'do_not_call' ? 'dnc' : ''}" onclick="selectLead(${l.id}, 'medium_large')">
+          <td><span style="font-weight:600">${esc(l.name)}</span> ${l.category ? `<span class="pill">${esc(l.category)}</span>` : ''}</td>
+          <td style="white-space:nowrap">${pretty(l.phone)}</td>
+          <td>${esc([l.city, l.state].filter(Boolean).join(', '))}</td>
+          <td>${L ? `<b>${L.text}</b> <span class="badge b-${L.state}">${L.badge}</span>` : '—'}</td>
+          <td><span class="pill s-${l.status}">${label(l.status)}</span></td>
+          <td class="sub">${ago(l.last_called)}</td>
+        </tr>
+      `;
+    }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">No existing leads found.</td></tr>';
+  } catch (e) {
+    console.warn("Failed to load existing leads:", e);
+  }
+}
+
+// ---------- Dialer Integration (Phase 8)
+function setNumber(e164) { $('number').value = pretty(e164); }
+
+function selectLead(leadId, segHint = null) {
+  const lead = (activeSegment === 'small_business' ? sbLeads : existingLeads).find(l => l.id === leadId)
+    || sbLeads.find(l => l.id === leadId) || existingLeads.find(l => l.id === leadId);
+  if (!lead) return;
+  currentLead = lead;
+
+  setNumber(lead.phone);
+  $('leadTitle').textContent = lead.name;
+  $('leadSub').textContent = `${lead.category || 'Contractor'} · ${[lead.city, lead.state].filter(Boolean).join(', ')}`;
+  $('campaignTag').textContent = `Campaign: ${lead.campaign || (lead.segment === 'small_business' ? 'Small Business HVAC & Plumbing' : 'Medium-Large HVAC & Plumbing')}`;
+  $('leadPill').innerHTML = `<span class="pill s-${lead.status}">${label(lead.status)}</span>`;
+
+  document.querySelectorAll('.oc').forEach(b => b.classList.toggle('cur', b.dataset.s === lead.status));
+  $('cbBox').classList.toggle('on', lead.status === 'callback');
+  $('cbAt').value = lead.callback_at ? lead.callback_at.slice(0, 16) : '';
+  $('notes').value = lead.notes || '';
+  $('saved').textContent = '';
+  $('leadPanel').style.display = 'block';
+
+  refreshClock();
+  loadLeadCallHistory(lead.id);
+  if (activeSegment === 'small_business') renderSbTable(); else loadExistingLeads();
+}
+
+function callLeadDirect(leadId) {
+  selectLead(leadId);
+  startCall();
+}
+
+async function loadLeadCallHistory(id) {
+  const hist = await api(`/api/calls?lead_id=${id}&limit=10`).catch(() => []);
+  $('history').innerHTML = hist.length ? hist.map(h => `
+    <div>${new Date(h.started_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${esc(h.status)} · ${dur(h.duration || 0)}${h.campaign ? ` · <span style="color:var(--brand)">${esc(h.campaign)}</span>` : ''}</div>
+  `).join('') : 'No calls yet.';
+}
+
+function refreshClock() {
+  const tz = currentLead ? currentLead.timezone : '';
+  const L = local(tz);
+  $('clock').style.display = L ? 'flex' : 'none';
+  if (!L) return;
+  $('clockT').textContent = L.text;
+  $('clockZ').textContent = `${L.wd} · their time (${L.zone})`;
+  $('clockB').className = 'badge b-' + L.state;
+  $('clockB').textContent = L.badge;
+  $('clock').classList.toggle('blocked', L.state === 'blocked');
+}
+
+// Twilio WebRTC
+async function getToken() { return (await api('/token')).token; }
+async function ensureDevice() {
+  if (device) return device;
+  device = new Twilio.Device(await getToken(), { codecPreferences: ['opus', 'pcmu'], closeProtection: true });
+  device.on('tokenWillExpire', async () => device.updateToken(await getToken()));
+  device.on('error', (err) => toast(`Twilio error ${err.code || ''}: ${err.message}`, 8000));
+  return device;
+}
+
+async function startCall() {
+  if (call) return toast('Already on a call.');
+  const d = ten($('number').value);
+  if (!valid(d)) return toast('Enter a valid 10-digit US number.');
+  if (currentLead && currentLead.status === 'do_not_call') return toast('This number is marked Do Not Call.');
+
+  const L = local(currentLead ? currentLead.timezone : '');
+  if (L && L.state === 'blocked') {
+    if (!confirm(`Warning: It's ${L.text} (${L.badge}) in their time zone. Federal telemarketing hours are 8am–9pm local time. Do you want to proceed?`)) return;
+  }
+
+  try {
+    $('callState').textContent = 'Connecting…';
+    $('callBtn').style.display = 'none';
+    $('hangBtn').style.display = 'flex';
+    $('muteBtn').disabled = false;
+
+    const dev = await ensureDevice();
+    const campaignName = currentLead ? (currentLead.campaign || 'Small Business HVAC & Plumbing') : 'Small Business HVAC & Plumbing';
+    const params = {
+      To: '+1' + d,
+      agent: $('agent').value.trim() || 'Agent',
+      campaign: campaignName,
+    };
+    if (currentLead) params.lead_id = String(currentLead.id);
+
+    call = await dev.connect({ params });
+    call.on('ringing', () => { $('callState').textContent = 'Ringing…'; });
+    call.on('accept', () => { $('callState').textContent = 'Connected (live)'; });
+    const onEnd = (msg) => () => {
+      call = null;
+      $('callBtn').style.display = 'flex';
+      $('hangBtn').style.display = 'none';
+      $('muteBtn').disabled = true;
+      $('callState').textContent = msg;
+      if (currentLead) loadSbStats();
+    };
+    call.on('disconnect', onEnd('Call ended. Pick outcome below.'));
+    call.on('cancel', onEnd('Cancelled'));
+    call.on('reject', onEnd('Call rejected'));
+    call.on('error', (err) => { onEnd(`Error: ${err.message}`)(); });
+  } catch (e) {
+    call = null;
+    $('callBtn').style.display = 'flex';
+    $('hangBtn').style.display = 'none';
+    $('callState').textContent = 'Call failed';
+    toast(e.message);
+  }
+}
+
+function hangUp() {
+  if (call) call.disconnect();
+}
+function toggleMute() {
+  if (!call) return;
+  const isM = call.isMuted();
+  call.mute(!isM);
+  $('muteBtn').textContent = !isM ? 'Unmute' : 'Mute';
+}
+function nextLead() {
+  if (!sbLeads.length) return toast('No leads in view.');
+  const curIdx = currentLead ? sbLeads.findIndex(l => l.id === currentLead.id) : -1;
+  const next = sbLeads[(curIdx + 1) % sbLeads.length];
+  selectLead(next.id);
+}
+function callDemo() {
+  $('number').value = '(346) 396-6361';
+  currentLead = null;
+  $('leadTitle').textContent = 'Flow Chain AI Receptionist Demo';
+  $('leadSub').textContent = 'Live automated voice demo line';
+  $('campaignTag').textContent = 'Demo Call';
+  refreshClock();
+  startCall();
+}
+
+// Outcome Logging
+async function setOutcome(s) {
+  if (!currentLead) return toast('Select a lead first.');
+  if (s === 'callback') {
+    $('cbBox').classList.add('on');
+    return;
+  }
+  await api(`/api/leads/${currentLead.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: s, notes: $('notes').value.trim() })
+  });
+  currentLead.status = s;
+  $('leadPill').innerHTML = `<span class="pill s-${s}">${label(s)}</span>`;
+  document.querySelectorAll('.oc').forEach(b => b.classList.toggle('cur', b.dataset.s === s));
+  toast(`Outcome saved: ${label(s)}`);
+  loadSbStats();
+  if (activeSegment === 'small_business') renderSbTable();
+}
+
+async function saveCallback() {
+  const at = $('cbAt').value;
+  if (!at) return toast('Pick a date/time.');
+  await api(`/api/leads/${currentLead.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'callback', callback_at: at, notes: $('notes').value.trim() })
+  });
+  toast('Callback scheduled.');
+  loadSbStats();
+}
+
+// Notes Auto-save
+let notesTimer;
+$('notes').addEventListener('input', () => {
+  $('saved').textContent = 'Typing…';
+  clearTimeout(notesTimer);
+  notesTimer = setTimeout(async () => {
+    if (!currentLead) return;
+    await api(`/api/leads/${currentLead.id}`, { method: 'PATCH', body: JSON.stringify({ notes: $('notes').value }) });
+    $('saved').textContent = 'Saved ✓';
+  }, 1000);
+});
+
+// Keypad
+[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*',''],['0','+'],['#','']].forEach(([k, s]) => {
+  const b = document.createElement('button'); b.className = 'key'; b.innerHTML = `${k}<small>${s}</small>`;
+  b.onclick = () => { if (call) call.sendDigits(k); else { $('number').value += k; } };
+  $('keypad').appendChild(b);
+});
+
+// ---------- Discovery Modal (Phase 10)
+function openDiscoveryModal() {
+  $('discoveryModal').classList.add('active');
+  $('discStatusBox').style.display = 'none';
+  $('discStartBtn').disabled = false;
+}
+function closeDiscoveryModal() {
+  $('discoveryModal').classList.remove('active');
+}
+
+let discoveryPollInterval;
+async function startDiscovery() {
+  const body = {
+    trade: $('discTrade').value,
+    state: $('discState').value,
+    cities: $('discCities').value,
+    max_leads: +$('discMax').value || 20,
+    min_score: +$('discMinScore').value || 60,
+    min_opportunity: $('discMinOpp').value,
+  };
+  $('discStartBtn').disabled = true;
+  $('discStatusBox').style.display = 'block';
+  $('discJobStatus').textContent = 'Starting discovery pipeline…';
+
+  try {
+    const res = await api('/api/discovery/start', { method: 'POST', body: JSON.stringify(body) });
+    $('discJobId').textContent = '#' + res.job_id;
+    $('discJobStatus').textContent = 'Running search across public directories…';
+
+    discoveryPollInterval = setInterval(async () => {
+      const poll = await api(`/api/discovery/jobs/${res.job_id}`).catch(() => null);
+      if (!poll) return;
+      $('discFound').textContent = poll.leads_found;
+      $('discDupes').textContent = poll.duplicates_skipped;
+      $('discRej').textContent = poll.leads_rejected;
+      $('discAdded').textContent = poll.leads_added;
+
+      if (poll.status === 'completed') {
+        clearInterval(discoveryPollInterval);
+        $('discJobStatus').textContent = 'Completed! Leads added to dashboard.';
+        $('discStartBtn').disabled = false;
+        toast(`Discovery completed: +${poll.leads_added} new small business leads!`);
+        loadSbLeads();
+        loadSbStats();
+      } else if (poll.status === 'failed') {
+        clearInterval(discoveryPollInterval);
+        $('discJobStatus').textContent = 'Job failed: ' + (poll.error_message || 'Unknown error');
+        $('discStartBtn').disabled = false;
+      }
+    }, 4000);
+  } catch (e) {
+    $('discStartBtn').disabled = false;
+    toast(e.message);
+  }
+}
+
+// ---------- Lead Details Modal (Phase 5 & 6)
+async function openLeadDetails(id) {
+  const lead = (activeSegment === 'small_business' ? sbLeads : existingLeads).find(l => l.id === id) || await api(`/api/leads?id=${id}`);
+  if (!lead) return;
+  currentModalLead = lead;
+
+  $('modalLeadName').textContent = lead.name;
+  $('modalLeadSub').textContent = `${lead.category} · ${lead.city}, ${lead.state} · ${pretty(lead.phone)}`;
+  $('modalScore').textContent = `Score: ${lead.lead_score || 0}/100`;
+  $('modalOpp').textContent = `Opportunity: ${lead.ai_opportunity || 'Insufficient'}`;
+  $('modalEmp').textContent = `Team: ${lead.employee_estimate || '1-10 (Estimated)'}`;
+  $('modalStatus').textContent = `Status: ${label(lead.status)}`;
+
+  // Voice AI Rationale (Phase 6)
+  $('modalAiReasoning').textContent = lead.ai_reasoning || 'No specific reasoning recorded yet.';
+
+  // Scoring Criteria (Phase 5)
+  let qDetails = {};
+  try { qDetails = JSON.parse(lead.qualification_details || '{}'); } catch {}
+  const criteria = qDetails.criteria || {};
+  const critNames = {
+    small_independent_business: '1. Small Independent Business (max 20)',
+    high_phone_dependence: '2. High Phone Dependence (max 20)',
+    emergency_or_after_hours: '3. Emergency or After-Hours Service (max 15)',
+    limited_cs_infrastructure: '4. Limited Customer Service Infrastructure (max 15)',
+    strong_public_presence: '5. Strong Public Business Presence (max 10)',
+    valid_business_phone: '6. Valid US Business Phone (max 10)',
+    owner_contact_opportunity: '7. Clear Owner/Operator Contact Opportunity (max 10)',
+  };
+
+  $('modalCriteriaList').innerHTML = Object.entries(critNames).map(([k, labelText]) => {
+    const c = criteria[k] || { awarded: 0, max: 10, evidence: 'No recorded evidence' };
+    return `
+      <div class="crit-row">
+        <div>
+          <div class="crit-name">${labelText}</div>
+          <div class="crit-evid">${esc(c.evidence)}</div>
+        </div>
+        <div class="crit-pts">${c.awarded} pts</div>
+      </div>
+    `;
+  }).join('');
+
+  // Extra data
+  $('modalExtraData').innerHTML = `
+    <div><b>Owner / Contact:</b> ${esc(lead.owner_name || 'Not publicly listed')}</div>
+    <div><b>Email:</b> ${esc(lead.email || 'Not available')}</div>
+    <div><b>Google Rating:</b> ${lead.google_rating ? `${lead.google_rating}★ (${lead.review_count} reviews)` : 'None'}</div>
+    <div><b>Discovered:</b> ${ago(lead.created_at)}</div>
+    <div><b>Verified:</b> ${lead.verified_at ? ago(lead.verified_at) : 'Not verified yet'}</div>
+    <div><b>Source:</b> ${esc(lead.source_url ? 'Google Maps / Directory' : 'Imported')}</div>
+  `;
+
+  $('leadDetailsModal').classList.add('active');
+}
+function closeLeadDetailsModal() {
+  $('leadDetailsModal').classList.remove('active');
+}
+function callCurrentFromModal() {
+  closeLeadDetailsModal();
+  if (currentModalLead) callLeadDirect(currentModalLead.id);
+}
+
+// ---------- Manual Add Lead Modal
+function openAddLeadModal() { $('addLeadModal').classList.add('active'); }
+function closeAddLeadModal() { $('addLeadModal').classList.remove('active'); }
+async function submitAddLead() {
+  const name = $('addName').value.trim();
+  const phone = $('addPhone').value.trim();
+  if (!name || !phone) return toast('Name and phone are required.');
+  const d = ten(phone);
+  if (!valid(d)) return toast('Valid 10-digit US phone required.');
+
+  try {
+    await api('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        phone: '+1' + d,
+        city: $('addCity').value.trim(),
+        state: $('addState').value.trim().toUpperCase(),
+        category: $('addCat').value,
+        employee_estimate: $('addEmp').value,
+        owner_name: $('addOwner').value.trim(),
+        website: $('addWebsite').value.trim(),
+        is_emergency: $('addEmer').checked ? 1 : 0,
+        is_after_hours: $('addAfter').checked ? 1 : 0,
+        segment: 'small_business',
+      })
+    });
+    toast('Lead created and AI-scored.');
+    closeAddLeadModal();
+    loadSbLeads();
+    loadSbStats();
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- CSV Import with Preview (Phase 9)
+async function handleCsvFile(e, seg) {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingImportFile = file;
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('segment', seg);
+  fd.append('preview', 'true');
+
+  try {
+    const r = await fetch('/api/leads/import', { method: 'POST', body: fd }).then(res => res.json());
+    if (r.error) throw new Error(r.error);
+    $('prevValid').textContent = r.valid_new_leads;
+    $('prevDupes').textContent = r.duplicates_detected;
+    $('prevInvalid').textContent = r.invalid_phone_rows.length;
+
+    $('prevTableBody').innerHTML = (r.sample_leads || []).map(s => `
+      <tr>
+        <td style="font-weight:600">${esc(s.name)}</td>
+        <td>${pretty(s.phone)}</td>
+        <td>${esc(s.location)}</td>
+        <td>${esc(s.category)}</td>
+        <td><span class="score-badge ${s.lead_score >= 80 ? 'sc-high' : 'sc-med'}">${s.lead_score}</span></td>
+        <td><span class="opp-badge opp-high">${esc(s.ai_opportunity)}</span></td>
+      </tr>
+    `).join('');
+
+    $('previewModal').classList.add('active');
+  } catch (err) {
+    toast('CSV preview failed: ' + err.message);
+  }
+  e.target.value = '';
+}
+function closePreviewModal() { $('previewModal').classList.remove('active'); pendingImportFile = null; }
+async function confirmImport() {
+  if (!pendingImportFile) return;
+  const fd = new FormData();
+  fd.append('file', pendingImportFile);
+  fd.append('segment', activeSegment);
+  fd.append('preview', 'false');
+
+  try {
+    const r = await fetch('/api/leads/import', { method: 'POST', body: fd }).then(res => res.json());
+    toast(`Successfully imported ${r.added} leads (+${r.duplicates} duplicates skipped).`);
+    closePreviewModal();
+    loadSbLeads();
+    loadSbStats();
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+// ---------- Bulk Operations
+async function bulkAction(act) {
+  const ids = Array.from(selectedIds);
+  if (!ids.length) return toast('Select at least one lead first.');
+  try {
+    const res = await api('/api/leads/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action: act, lead_ids: ids })
+    });
+    toast(`Bulk ${act} applied to ${res.updated || ids.length} leads.`);
+    selectedIds.clear();
+    updateBulkBar();
+    loadSbLeads();
+    loadSbStats();
+  } catch (e) { toast(e.message); }
+}
+async function bulkSetStatusPrompt() {
+  const s = prompt('Enter new status (new, callback, interested, not_interested, do_not_call):', 'interested');
+  if (!s) return;
+  const ids = Array.from(selectedIds);
+  try {
+    await api('/api/leads/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'status', lead_ids: ids, status: s })
+    });
+    toast(`Updated status to ${s} for ${ids.length} leads.`);
+    selectedIds.clear();
+    updateBulkBar();
+    loadSbLeads();
+  } catch (e) { toast(e.message); }
+}
+async function bulkDeleteSelected() {
+  const ids = Array.from(selectedIds);
+  if (!confirm(`Delete ${ids.length} selected leads?`)) return;
+  try {
+    await api('/api/leads/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', lead_ids: ids })
+    });
+    toast(`Deleted ${ids.length} leads.`);
+    selectedIds.clear();
+    updateBulkBar();
+    loadSbLeads();
+    loadSbStats();
+  } catch (e) { toast(e.message); }
+}
+function queueSelectedCalls() {
+  const ids = Array.from(selectedIds);
+  if (!ids.length) return toast('Select leads to queue.');
+  selectLead(ids[0]);
+  toast(`Queue started with ${ids.length} leads. First lead loaded.`);
+}
+
+// ---------- Initial Boot
+(async () => {
+  const h = await api('/health').catch(() => null);
+  $('connDot').className = 'dot ' + (h && h.ok ? 'ok' : 'err');
+  $('connDot').title = h && h.ok ? 'Twilio configuration OK' : 'Setup alert: ' + (h ? h.missing_env.join(', ') : 'unreachable');
+})();
+
+$('agent').value = store.get('fc_agent', '');
+$('agent').addEventListener('change', () => store.set('fc_agent', $('agent').value.trim()));
+
+// Tabs in Existing Leads View
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t.dataset.tab));
+}));
+
+switchSegment('small_business');
+</script>
+</body>
+</html>
